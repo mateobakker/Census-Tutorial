@@ -1,2 +1,2 @@
 # Census-Tutorial
-For use in SOC 351
+This repository is mostly just to share the files with students for today's tutorial.
