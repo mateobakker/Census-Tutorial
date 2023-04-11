@@ -1,0 +1,16 @@
+---
+title: 'Step 1: installing R and RStudio'
+output: html_document
+date: "2023-04-11"
+---
+
+If you want to follow along on your own computers, you are going to need to install two pieces of free software: R and RStudio.  
+
+We can download both of these pieces of software from [this site](https://posit.co/download/rstudio-desktop/#download).  
+
+>Begin by installing R.  You can do that by clicking on and download the "Download and Install R" button on the right side of the screen. That will take you directly to the cran.rstudio.com website where you will want to choose and click on your operating system in the top box. Once you have done that, find the file in your downloads, double-click the file and run the installation package.
+
+>Once you’ve got R installed, then download and install RStudio by clicking on the button on the right side of the screen [back here](https://posit.co/download/rstudio-desktop/#download). Once you have done that, once again, find this file in your downloads and double-click on it. Once the .dmg file opens, you’ll want to move the RStudio icon into your applications folder.  
+
+>After you’ve completed these two steps, you’ll be able to use RStudio.  
+
