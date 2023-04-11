@@ -1,0 +1,161 @@
+---
+title: "Accessing US Census Data in R \n\nApril 13, 2023"
+output: html_notebook
+---
+
+My goal for this session is for you to learn to access data from US Census Bureau using R. 
+
+Using the RStudio application we are going to make use of some specialized tools from the "tidycensus" package to access the Census Bureau's "API" (automated programming interface). This can greatly simplify the process for accessing and manipulating Census data. 
+
+But before we can do that, we each need to get an "api key" from the Census Bureau allowing us to use this service.  
+
+Please request a key [here](https://api.census.gov/data/key_signup.html): you can tell it your organization is Marymount; I believe you can give it any email you'd like. 
+
+Let's now install the tidycensus package and another package, tmap, that we might use later.  To do that, run the following code chunk.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=TRUE}
+#install.packages(c("tidycensus", "tmap"))
+library(tidycensus)
+library(tidyverse)
+library(tmap)
+```
+
+Now let's go to look for an email from the Census Bureau with your new key. First, click on the link within that email to activate your key. Second copy the key (the long string of numbers and letter) so we can store it in R.
+
+Once we've copied the api key, we can use the census_api_key function in tidycensus to store it for future use.  Run the following to do that. Once this is done successfully, you won't have to do it again.  
+
+```{r}
+#tidycensus::census_api_key(key = "PASTE YOUR KEY HERE", install = TRUE)
+```
+
+With that, we can now get started.
+
+Let's begin by confirming the statistics you gathered about median household income, residents with bachelor's degree or more, housing units occupied by renters, and residents who identify as white, non-Hispanic in Arlington County.  
+
+To start, we'll have to figure out what variables contain the information we're interested in.  We can get a list of all available variables using the "load_variables" function in tidycensus.
+
+```{r}
+## let's create an object names vars19 with the list of available variables
+library(tidycensus)
+library(tidyverse)
+vars21 <- load_variables(year = 2021, dataset = "acs5/profile") ## we have to tell it the year and dataet we're interested in
+
+```
+
+What did we get?
+
+```{r}
+vars21
+```
+
+Most importantly, we see that we've got a name for every available table (this is in the "concept" column), as well as each individual variable, and a label for each variable.
+
+To make this a little easier to work with, I suggest we break up the label column into its various subcategories.
+
+```{r}
+vars21_cleaned <- vars21 %>% 
+  separate(label, c("type", "concept", "group", "sub1", "sub2", "sub3"), sep = "!!") 
+
+```
+
+Now let's use this new "vars21_cleaned" dataset to look for our desired variables.  
+
+We are looking for the variables associated with: 
+1. Median household income
+2. Renter occupied units
+3. Residents with a bachelor's degree or more
+3. Residents who identify as non Hispanic whites
+
+Let's create new objects for each of the four variables we're interested in
+
+```{r}
+med_hh_inc <- 
+ba_holders <- 
+renters <- 
+wnh <- 
+```
+
+It is important to note that the estimates we get from the American Community Survey are *not* total population counts, but instead estimates based on a survey of only a fraction of all households in the country.  As a result, these estimates contain some level of uncertainty/error; when we look at smaller sub-groups with small areas, this uncertainty can make these estimates unreliable.  
+
+This is why, in addition to the estimate, we get an associated moe, or margin of error. The margin of error represents a 90% confidence interval; that is, the Census Bureau can say with 90% confidence that the true value falls within the range of (estimate + moe) to (estimate - moe).  Let's look at one of our examples.  
+
+We've found that the total number of children under 18 in census tract 10.01 in Washington, DC is 1766 with a margin of error of 189  Our 90% confidence interval is thus (1766 - 189) to (1766 + 189) or 1577 to 1955.
+
+With ggplot we can easily visualize this.
+
+For example, let's use our variable above to get data on median family income in Maryland to see the (un)certainty of our estimates.
+
+```{r}
+va_inc <- 
+  get_acs(geography = "county",
+          state = "VA",
+          variables = "DP03_0062")
+
+va_inc %>% 
+  mutate(county = fct_reorder(NAME, desc(estimate))) %>% 
+  filter(str_detect(NAME, "Arl|Alex|Loud|Prince Wi|Fair|Mana|Falls")) %>% 
+  ggplot(aes(x = estimate, y = county)) +
+  geom_errorbarh(aes(xmin = estimate - moe, xmax = estimate + moe)) +
+  geom_point(color = "red", size = 2) +
+  labs(title = "Median household income in Northern Virginia counties",
+       subtitle = "bars represent 90% confidence interval",
+       x = "",
+       y = "")
+```
+
+One way to determine whether we can trust an estimate is to calculate that estimate's "coefficient of variance" (CV). A common rule of thumb in interpreting these is that any estimates with a CV > 30% are unreliable; those below 15% are reliable; and those between 15-30% should be treated "with caution".  
+
+Here's how we can calculate the CV for any estimate:  
+
+```{r}
+data %>% 
+  mutate(CV = (moe / 1.645) / estimate * 100)
+
+```
+
+Let's get back to our search for data associated with vulnerability to gentrification. 
+
+We'll start with the number (or percent) of residents with a bachelor's degree or more.
+
+```{r}
+
+bachelors_degrees_in_arlington <- 
+  get_acs(geography = "tract",
+          state = "VA",
+          county = "Arlington",
+          variables = UNKNOWN) ## we need to add this
+
+```
+
+One of the nice things about the tidycensus package is that we can easily map this geographic data, which is a nice way of visualizing the variation across space.  
+
+To do that, we need to re-do our get_acs call and add another argument (geometry = TRUE).
+
+```{r}
+bachelors_degrees_in_arlington <- 
+  get_acs(geography = "tract",
+          state = "VA",
+          county = "Arlington",
+          variables = "DP02_0068P",
+          geometry = T) ## we need to add this
+```
+Now that we have the geometry associated with each county we can create a map.
+
+```{r}
+bachelors_degrees_in_arlington %>% 
+  ggplot() +
+  geom_sf(aes(fill = -estimate)) +
+  labs(title = "Percent of Arlington adult residents with a BA or more")
+```
+
+If we install the "tmap" package we can even create some nice interactive maps that allow us to scroll in and out.  
+```{r}
+#install.packages("tmap")
+library(tmap)
+#ttm()
+
+bachelors_degrees_in_arlington %>% 
+  qtm(fill = "estimate")
+```
+
+If we have time to gather data from our other variables, we might just be able to identify the neighborhoods in Arlington that appear to be "vulnerable" to gentrification -- at least according to the definition of vulnerability we have taken from Chapple and her co-authors.
